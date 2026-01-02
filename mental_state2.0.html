@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中小学生精神状态调查问卷</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --accent-color: #a5b4fc;
+            --bg-gradient: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.3);
+            --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: var(--glass-border);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 600px;
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        /* 标题与内容 */
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #1e1b4b;
+            text-align: center;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .tag {
+            display: inline-block;
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        .tag-single { background: #fee2e2; color: #991b1b; }
+        .tag-multi { background: #dbeafe; color: #1e40af; }
+
+        /* 选项列表 */
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .option-item {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            font-size: 1rem;
+        }
+
+        .option-item:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-2px);
+        }
+
+        .option-item.selected {
+            border-color: var(--primary-color);
+            background: #eef2ff;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .option-marker {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .option-item.selected .option-marker {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .option-marker::after {
+            content: '';
+            display: block;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0;
+        }
+        
+        .option-item.selected .option-marker::after {
+            opacity: 1;
+        }
+
+        /* 按钮 */
+        .btn-next {
+            margin-top: 30px;
+            width: 100%;
+            padding: 15px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .btn-next.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .btn-next:hover {
+            background: #4f46e5;
+            transform: scale(1.02);
+        }
+
+        /* 动画类 */
+        .fade-out {
+            animation: fadeOutLeft 0.3s forwards;
+        }
+
+        .fade-in {
+            animation: fadeInRight 0.3s forwards;
+        }
+
+        @keyframes fadeOutLeft {
+            to { opacity: 0; transform: translateX(-20px); }
+        }
+
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* 结果页 */
+        #result-screen {
+            display: none;
+            text-align: center;
+        }
+        
+        #chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin: 20px auto;
+        }
+
+        .result-text {
+            font-size: 1.1rem;
+            margin-top: 20px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .score-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="welcome-screen">
+        <h1>中小学生精神状态<br>调查问卷</h1>
+        <p style="text-align: center; margin: 20px 0; color: #666;">
+            本问卷旨在科学（胡扯）地评估您的精神状态。<br>
+            请放下戒备，跟随本能回答。
+        </p>
+        <button class="btn-next active" onclick="startSurvey()">开始发疯</button>
+    </div>
+
+    <div id="quiz-screen" style="display: none;">
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        
+        <div id="question-container">
+            </div>
+
+        <button class="btn-next" id="next-btn" onclick="nextQuestion()">下一题</button>
+    </div>
+
+    <div id="result-screen">
+        <h1>诊断报告</h1>
+        <div id="chart-container">
+            <canvas id="resultChart"></canvas>
+        </div>
+        <div class="score-display" id="final-verdict"></div>
+        <p class="result-text" id="result-desc"></p>
+        <button class="btn-next active" onclick="location.reload()">重新确诊</button>
+    </div>
+</div>
+
+<script>
+    // 题目数据配置
+    // score 越高代表越“疯”
+    const questions = [
+        {
+            id: 1,
+            text: "您的性别是",
+            type: "single",
+            options: [
+                { text: "A. 男", score: 0 },
+                { text: "B. 女", score: 0 },
+                { text: "C. 无性", score: 20 },
+                { text: "D. 狗", score: 40 },
+                { text: "E. 猫", score: 40 },
+                { text: "F. 类人种", score: 30 },
+                { text: "G. 坦克", score: 60 },
+                { text: "H. 弹道导弹", score: 80 },
+                { text: "I. 沃尔玛购物袋", score: 90 },
+                { text: "J. 窗帘", score: 70 }
+            ]
+        },
+        {
+            id: 2,
+            text: "请问您的年级是",
+            type: "single",
+            options: [
+                { text: "A. 我是高一", score: 10 },
+                { text: "B. 我是高二", score: 15 },
+                { text: "C. 我是高三", score: 20 },
+                { text: "D. 我想退学", score: 50 }
+            ]
+        },
+        {
+            id: 3,
+            text: "请问您对学校管理的评价是",
+            type: "single",
+            options: [
+                { text: "A. 很好", score: 0 },
+                { text: "B. 什么寄吧学校", score: 30 },
+                { text: "C. 我是校长", score: 80 },
+                { text: "D. 我只是个草履虫，关我什么事", score: 60 }
+            ]
+        },
+        {
+            id: 4,
+            text: "请问上了高中后对您的生活产生了什么影响",
+            type: "multi",
+            options: [
+                { text: "A. 我的精神状态挺好的呀!我的神精状态挺呀的好!的我神精态状好呀挺的!", score: 50 },
+                { text: "B. 人生毫无意义", score: 30 },
+                { text: "C. 啊啊啊啊啊啊啊", score: 40 },
+                { text: "D. 劳资一拳干爆地球", score: 70 },
+                { text: "E. 哥们想吃人", score: 90 },
+                { text: "F. （尖叫）（扭曲）（阴暗的爬行）（尖叫）（痉挛）（狂奔）（不分对象攻击）", score: 100 },
+                { text: "G. 我只是个无忧无虑的草履虫而已", score: 60 }
+            ]
+        },
+        {
+            id: 5,
+            text: "您上课的状态",
+            type: "single",
+            options: [
+                { text: "A. 这是什么?床?浅睡一下", score: 20 },
+                { text: "B. 吗的怎么又上课了", score: 30 },
+                { text: "C. 哥们在坐牢", score: 40 },
+                { text: "D. 我都说了我是草履虫!草履虫上什么课!", score: 70 }
+            ]
+        },
+        {
+            id: 6,
+            text: "如果你被老师批评了，你会?",
+            type: "multi",
+            options: [
+                { text: "A. 将功补过", score: 0 },
+                { text: "B. bear (忍受/熊?)", score: 20 },
+                { text: "C. 吃掉老师", score: 100 },
+                { text: "D. 炸学校解气", score: 90 },
+                { text: "E. 摆烂", score: 40 },
+                { text: "F. 大四老师 (打死老师?)", score: 95 }
+            ]
+        },
+        {
+            id: 7,
+            text: "你平常怎么去学校?",
+            type: "multi",
+            options: [
+                { text: "A. 走路", score: 0 },
+                { text: "B. 开车", score: 0 },
+                { text: "C. 摇花手飞过去", score: 80 },
+                { text: "D. 我是微生物不用上学", score: 60 },
+                { text: "E. 我是草履虫不用上学", score: 60 },
+                { text: "F. 学校被炸了不用上学", score: 70 },
+                { text: "G. 骑同学上学", score: 90 },
+                { text: "H. 有私人专车", score: 10 }
+            ]
+        }
+    ];
+
+    let currentQuestionIndex = 0;
+    let totalScore = 0;
+    let maxPossibleScore = 0; // 用于计算百分比
+    let currentSelections = []; // 存储当前题目的选择索引
+
+    // 初始化计算最高可能分数（粗略估计，用于图表比例）
+    questions.forEach(q => {
+        if(q.type === 'single') {
+            maxPossibleScore += Math.max(...q.options.map(o => o.score));
+        } else {
+            // 多选假设选了最疯的几个
+            maxPossibleScore += 150; 
+        }
+    });
+
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const quizScreen = document.getElementById('quiz-screen');
+    const resultScreen = document.getElementById('result-screen');
+    const questionContainer = document.getElementById('question-container');
+    const nextBtn = document.getElementById('next-btn');
+    const progressBar = document.getElementById('progress-bar');
+
+    function startSurvey() {
+        welcomeScreen.style.display = 'none';
+        quizScreen.style.display = 'block';
+        renderQuestion();
+    }
+
+    function renderQuestion() {
+        const q = questions[currentQuestionIndex];
+        currentSelections = [];
+        nextBtn.classList.remove('active');
+        nextBtn.innerText = currentQuestionIndex === questions.length - 1 ? "查看诊断结果" : "下一题";
+
+        // 更新进度条
+        const progress = ((currentQuestionIndex) / questions.length) * 100;
+        progressBar.style.width = `${progress}%`;
+
+        // 构建HTML
+        let typeLabel = q.type === 'single' ? '<span class="tag tag-single">单选</span>' : '<span class="tag tag-multi">多选</span>';
+        
+        let html = `
+            <div class="fade-in">
+                <div class="question-text">${q.id}. ${q.text} ${typeLabel}</div>
+                <div class="options-list">
+        `;
+
+        q.options.forEach((opt, index) => {
+            html += `
+                <div class="option-item" onclick="selectOption(${index})">
+                    <div class="option-marker"></div>
+                    <div>${opt.text}</div>
+                </div>
+            `;
+        });
+
+        html += `</div></div>`;
+        questionContainer.innerHTML = html;
+    }
+
+    function selectOption(index) {
+        const q = questions[currentQuestionIndex];
+        const optionsEls = document.querySelectorAll('.option-item');
+
+        if (q.type === 'single') {
+            // 单选逻辑
+            currentSelections = [index];
+            optionsEls.forEach(el => el.classList.remove('selected'));
+            optionsEls[index].classList.add('selected');
+        } else {
+            // 多选逻辑
+            const idxInArray = currentSelections.indexOf(index);
+            if (idxInArray > -1) {
+                currentSelections.splice(idxInArray, 1);
+                optionsEls[index].classList.remove('selected');
+            } else {
+                currentSelections.push(index);
+                optionsEls[index].classList.add('selected');
+            }
+        }
+
+        // 激活按钮
+        if (currentSelections.length > 0) {
+            nextBtn.classList.add('active');
+        } else {
+            nextBtn.classList.remove('active');
+        }
+    }
+
+    function nextQuestion() {
+        // 计算分数
+        const q = questions[currentQuestionIndex];
+        currentSelections.forEach(idx => {
+            totalScore += q.options[idx].score;
+        });
+
+        // 动画切换
+        const currentContent = questionContainer.firstElementChild;
+        currentContent.classList.remove('fade-in');
+        currentContent.classList.add('fade-out');
+
+        setTimeout(() => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                renderQuestion();
+            } else {
+                showResult();
+            }
+        }, 300);
+    }
+
+    function showResult() {
+        quizScreen.style.display = 'none';
+        resultScreen.style.display = 'block';
+        
+        // 计算“想死”的比例
+        // 基础值20%（防止正常人全是0），最大值修正
+        let insanityRatio = Math.min((totalScore / maxPossibleScore) * 100 + 10, 99);
+        // 如果分数极低，至少给个5%
+        if (totalScore === 0) insanityRatio = 5; 
+        
+        const darkBlue = insanityRatio.toFixed(1);
+        const lightBlue = (100 - darkBlue).toFixed(1);
+
+        // 绘制图表
+        const ctx = document.getElementById('resultChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['想死', '也是想死，不过是浅蓝色的'],
+                datasets: [{
+                    data: [darkBlue, lightBlue],
+                    backgroundColor: [
+                        '#1e3a8a', // 深蓝色
+                        '#93c5fd'  // 浅蓝色
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 14 },
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 评价文案
+        const verdictEl = document.getElementById('final-verdict');
+        const descEl = document.getElementById('result-desc');
+
+        if (totalScore < 50) {
+            verdictEl.innerText = "状态：疑似碳基生物";
+            descEl.innerText = "你居然在如此高压的环境下保持了人类的理智？这本身就是一种精神病。建议复查。";
+        } else if (totalScore < 150) {
+            verdictEl.innerText = "状态：普通高中牲";
+            descEl.innerText = "你的精神状态处于薛定谔的崩溃边缘。深蓝色的念头偶尔占据上风，但大部分时间你只是一只想要睡觉的草履虫。";
+        } else if (totalScore < 300) {
+            verdictEl.innerText = "状态：已变异";
+            descEl.innerText = "注意！检测到大量不可名状的思维波动。建议停止摇花手，放下手中的老师，立地成佛。";
+        } else {
+            verdictEl.innerText = "状态：不可名状的古神";
+            descEl.innerText = "（尖叫）（扭曲）（阴暗的爬行）沃尔玛购物袋你好，请问需要把地球炸几分熟？";
+        }
+    }
+</script>
+
+</body>
+</html>
